@@ -30,19 +30,30 @@ class OpenRouterClient:
         self.call_log = []
 
     def ask(self, prompt, purpose="unknown"):
+        from ..telemetry import log
+
         errors = []
-        for model in self._model_sequence():
+        models = self._model_sequence()
+        for attempt, model in enumerate(models):
             started = perf_counter()
-            response = self._post(prompt, model)
+            try:
+                response = self._post(prompt, model)
+            except requests.RequestException as exc:
+                elapsed = perf_counter() - started
+                log(
+                    f"OpenRouter call purpose={purpose} model={model} "
+                    f"error={type(exc).__name__} time={elapsed:.2f}s"
+                )
+                errors.append(f"{model}: {type(exc).__name__}: {exc}")
+                continue
             elapsed = perf_counter() - started
-            from ..telemetry import log
             call = {
                 "purpose": purpose,
                 "model": model,
                 "prompt_chars": len(prompt) if isinstance(prompt, str) else 0,
                 "duration": elapsed,
                 "provider_status": response.status_code,
-                "retry_count": len(self.call_log),
+                "retry_count": attempt,
             }
             self.call_log.append(call)
             log(
@@ -52,7 +63,7 @@ class OpenRouterClient:
             )
             if not response.ok:
                 error_text = f"OpenRouter returned {response.status_code}: {response.text}"
-                if _is_free_model_unavailable(response):
+                if _should_try_next_model(response):
                     errors.append(error_text)
                     continue
                 raise RuntimeError(error_text)
@@ -61,7 +72,7 @@ class OpenRouterClient:
                 return self._parse_completion(response)
             except RuntimeError as exc:
                 errors.append(str(exc))
-                if model != self._model_sequence()[-1]:
+                if model != models[-1]:
                     continue
                 raise
 
@@ -146,6 +157,14 @@ def _parse_fallback_models(value):
         for model in value.split(",")
         if model.strip()
     ]
+
+
+def _should_try_next_model(response):
+    # Rate limits and provider-side failures are model specific; auth and
+    # request errors would fail the same way on every fallback model.
+    if response.status_code == 429 or response.status_code >= 500:
+        return True
+    return _is_free_model_unavailable(response)
 
 
 def _is_free_model_unavailable(response):

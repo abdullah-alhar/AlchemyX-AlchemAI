@@ -5,7 +5,7 @@ from time import perf_counter
 
 from .schemas import Claim, ConflictResult
 from ..telemetry import log
-from .structured_json import extract_json_object, parse_with_one_repair
+from .structured_json import build_repair_prompt, extract_json_object, parse_with_one_repair
 
 
 AUTHORITY_SENSITIVE_TERMS = {
@@ -107,7 +107,11 @@ class EvidenceAdjudicator:
         response = self._ask(prompt, "adjudication")
         self.last_duration = perf_counter() - started
         log(f"Conflict detection: {self.last_duration:.2f}s")
-        repair_prompt = "Return only valid JSON matching the adjudication schema. No markdown or commentary."
+        repair_prompt = build_repair_prompt(
+            prompt,
+            response,
+            "Return only valid JSON matching the adjudication schema. No markdown or commentary.",
+        )
         data, retries, errors = parse_with_one_repair(
             response, repair_prompt, lambda value: self._ask(value, "adjudication_repair"), log, "adjudication"
         )

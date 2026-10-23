@@ -76,15 +76,12 @@ def _chunk_prose(text, chunk_size, overlap, min_chunk_size):
 
     units = []
     for paragraph in paragraphs:
-        sentences = _sentences(paragraph)
-        if len(sentences) == 1 and sentences[0] == paragraph and not _has_sentence_boundary(paragraph):
-            return _chunk_words(
-                text.split(),
-                chunk_size=chunk_size,
-                overlap=overlap,
-                min_chunk_size=min_chunk_size,
-            )
-        units.extend(sentences)
+        # A paragraph without sentence punctuation (a heading, a list, CSV
+        # rows) is kept as one unit; oversized units are word-split below.
+        if not _has_sentence_boundary(paragraph):
+            units.append(paragraph)
+            continue
+        units.extend(_sentences(paragraph))
 
     chunks = []
     current = []

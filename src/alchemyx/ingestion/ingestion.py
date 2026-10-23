@@ -1,5 +1,6 @@
 import csv
 import os
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -141,49 +142,51 @@ def ingest_corpus(
     result = IngestionResult()
     indexed_source_docs = set()
 
-    for root, _dirs, files in os.walk(corpus_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            extracted_text = ""
+    deferred = getattr(bm25_store, "deferred_writes", None)
+    with deferred() if deferred else nullcontext():
+        for root, _dirs, files in os.walk(corpus_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                extracted_text = ""
 
-            try:
-                if not file.lower().endswith(SUPPORTED_EXTENSIONS):
-                    result.skipped.append(make_doc_id(corpus_path, file_path))
-                    print(f"Skipped unsupported file: {file}")
-                    continue
+                try:
+                    if not file.lower().endswith(SUPPORTED_EXTENSIONS):
+                        result.skipped.append(make_doc_id(corpus_path, file_path))
+                        print(f"Skipped unsupported file: {file}")
+                        continue
 
-                extracted_text = extract_text(file_path)
+                    extracted_text = extract_text(file_path)
 
-                if extracted_text:
-                    doc_id = make_doc_id(corpus_path, file_path)
-                    metadata = file_metadata(corpus_path, file_path, doc_id)
-                    already_indexed = (
-                        hasattr(pipeline, "has_document")
-                        and pipeline.has_document(doc_id, extracted_text)
-                    )
-                    add_document_to_indexes(
-                        pipeline=pipeline,
-                        bm25_store=bm25_store,
-                        doc_id=doc_id,
-                        text=extracted_text,
-                        metadata=metadata,
-                    )
-                    if document_registry is not None:
-                        document_registry.replace_document(doc_id, metadata)
-                    indexed_source_docs.add(doc_id)
-                    if already_indexed:
-                        result.reused.append(doc_id)
-                        print(f"↻ Reused existing index: {file}.")
+                    if extracted_text:
+                        doc_id = make_doc_id(corpus_path, file_path)
+                        metadata = file_metadata(corpus_path, file_path, doc_id)
+                        already_indexed = (
+                            hasattr(pipeline, "has_document")
+                            and pipeline.has_document(doc_id, extracted_text)
+                        )
+                        add_document_to_indexes(
+                            pipeline=pipeline,
+                            bm25_store=bm25_store,
+                            doc_id=doc_id,
+                            text=extracted_text,
+                            metadata=metadata,
+                        )
+                        if document_registry is not None:
+                            document_registry.replace_document(doc_id, metadata)
+                        indexed_source_docs.add(doc_id)
+                        if already_indexed:
+                            result.reused.append(doc_id)
+                            print(f"↻ Reused existing index: {file}.")
+                        else:
+                            result.ingested.append(doc_id)
+                            print(f"✅ Success: {file} ingested.")
                     else:
-                        result.ingested.append(doc_id)
-                        print(f"✅ Success: {file} ingested.")
-                else:
-                    result.skipped.append(make_doc_id(corpus_path, file_path))
-                    print(f"Skipped empty file: {file}")
+                        result.skipped.append(make_doc_id(corpus_path, file_path))
+                        print(f"Skipped empty file: {file}")
 
-            except Exception as e:
-                result.failed[make_doc_id(corpus_path, file_path)] = str(e)
-                print(f"❌ Error: {file} can't read file. Reason: {e}")
+                except Exception as e:
+                    result.failed[make_doc_id(corpus_path, file_path)] = str(e)
+                    print(f"❌ Error: {file} can't read file. Reason: {e}")
 
     if not result.failed:
         result.removed = prune_indexes(

@@ -1,5 +1,6 @@
 import json
 import re
+from contextlib import contextmanager
 from pathlib import Path
 
 from rank_bm25 import BM25Okapi
@@ -39,12 +40,25 @@ class BM25Store:
         self.documents = []
         self.tokenized_documents = []
         self.bm25 = None
+        self._deferred = False
         self._load()
+
+    @contextmanager
+    def deferred_writes(self):
+        """Rebuild and save once at the end instead of after every document."""
+        if self._deferred:
+            yield self
+            return
+        self._deferred = True
+        try:
+            yield self
+        finally:
+            self._deferred = False
+            self._commit()
 
     def add_documents(self, documents):
         self.documents.extend(documents)
-        self._rebuild()
-        self._save()
+        self._commit()
 
     def replace_documents(self, source_doc, documents):
         self.documents = [
@@ -53,8 +67,7 @@ class BM25Store:
             if document.get("source_doc") != source_doc
         ]
         self.documents.extend(documents)
-        self._rebuild()
-        self._save()
+        self._commit()
 
     def delete_documents_except(self, source_docs):
         source_docs = set(source_docs)
@@ -68,9 +81,14 @@ class BM25Store:
             for document in self.documents
             if document.get("source_doc", "") in source_docs
         ]
+        self._commit()
+        return sorted(source_doc for source_doc in removed if source_doc)
+
+    def _commit(self):
+        if self._deferred:
+            return
         self._rebuild()
         self._save()
-        return sorted(source_doc for source_doc in removed if source_doc)
 
     def _rebuild(self):
         self.tokenized_documents = [

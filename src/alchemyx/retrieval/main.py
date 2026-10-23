@@ -76,12 +76,12 @@ def create_agent_retrieval_pipeline(api_key=None):
     if not bm25_store.documents:
         raise RuntimeError(
             "BM25 index is missing or empty. Run "
-            "scripts\\build_indexes.py before starting Streamlit."
+            "scripts/build_indexes.py before starting Streamlit."
         )
     if pipeline.collection.count() == 0:
         raise RuntimeError(
             "Chroma index is missing or empty. Run "
-            "scripts\\build_indexes.py before starting Streamlit."
+            "scripts/build_indexes.py before starting Streamlit."
         )
 
     return HybridRerankRetrievalPipeline(

@@ -4,10 +4,11 @@ from time import perf_counter
 try:
     from .Retrieval_Result import RetrievalResult
     from ..config import RRF_K
+    from ..telemetry import log
 except ImportError:
     from Retrieval_Result import RetrievalResult
     from src.alchemyx.config import RRF_K
-from ..telemetry import log
+    from src.alchemyx.telemetry import log
 
 
 class HybridSearch:

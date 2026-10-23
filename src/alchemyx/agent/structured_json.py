@@ -17,6 +17,17 @@ def extract_json_object(response):
     return json.loads(cleaned)
 
 
+def build_repair_prompt(original_prompt, response, instruction, max_response_chars=4000):
+    """Give the repair call the original task and the reply that failed to parse."""
+    previous = response if isinstance(response, str) else repr(response)
+    return (
+        f"{original_prompt}\n\n"
+        "Your previous reply could not be parsed as JSON:\n"
+        f"{previous[:max_response_chars]}\n\n"
+        f"{instruction}"
+    )
+
+
 def parse_with_one_repair(response, repair_prompt, ask, log, stage):
     try:
         payload = extract_json_object(response)

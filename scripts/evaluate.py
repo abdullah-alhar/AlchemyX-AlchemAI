@@ -129,6 +129,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if not Path(args.questions).is_file():
+        parser.error(
+            f"questions file not found: {args.questions}. Pass --questions with a "
+            "JSON list of evaluation questions for your corpus."
+        )
     questions = load_questions(args.questions)
     system = create_system()
     rows = evaluate_questions(system, questions)

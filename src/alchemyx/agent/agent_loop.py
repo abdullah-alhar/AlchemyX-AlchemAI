@@ -1,5 +1,4 @@
 from time import perf_counter
-from time import perf_counter
 from uuid import uuid4
 
 from ..config import MAX_AGENT_ITERATIONS

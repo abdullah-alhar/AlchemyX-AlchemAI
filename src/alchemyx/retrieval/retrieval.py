@@ -4,7 +4,7 @@ from pathlib import Path
 
 import chromadb
 
-INDEX_SCHEMA_VERSION = 5
+INDEX_SCHEMA_VERSION = 6
 
 try:
     from .Retrieval_Result import RetrievalResult
@@ -16,6 +16,7 @@ try:
         DEFAULT_COLLECTION_NAME,
         EMBEDDING_BATCH_SIZE,
     )
+    from ..telemetry import log
 except ImportError:
     from Retrieval_Result import RetrievalResult
     from embeddings import VoyageEmbeddingFunction
@@ -26,6 +27,9 @@ except ImportError:
         DEFAULT_COLLECTION_NAME,
         EMBEDDING_BATCH_SIZE,
     )
+    from src.alchemyx.telemetry import log
+
+
 class RetrievalPipeline:
     def __init__(
         self,
@@ -155,7 +159,6 @@ class RetrievalPipeline:
             "Embedding": embedding_elapsed,
             "Chroma retrieval": perf_counter() - chroma_started,
         }
-        from ..telemetry import log
         log(f"Embedding: {embedding_elapsed:.2f}s")
         log(f"Chroma retrieval: {self._last_timing['Chroma retrieval']:.2f}s")
         return self._to_retrieval_results(results)

@@ -3,3 +3,11 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+API-KEY-VOYAGE-AI.txt
+
+# Generated indexes (rebuild with scripts/build_indexes.py)
+/data/chroma/
+/data/bm25.json
+/data/document_registry.json
+src/alchemyx/ingestion/data/

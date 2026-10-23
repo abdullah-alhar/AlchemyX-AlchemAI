@@ -120,7 +120,7 @@ source .venv/bin/activate
 python scripts/build_indexes.py
 ```
 
-This creates or updates the Chroma and BM25 indexes and the document registry. Re-run it after corpus changes. If a file fails ingestion, fix that file and run the command again.
+This creates or updates the Chroma and BM25 indexes and the document registry in `data`. Re-run it after corpus changes, and after updating AlchemAI when the index format changes (the build re-embeds documents automatically in that case). If a file fails ingestion, fix that file and run the command again.
 
 ## Start Streamlit
 
@@ -149,7 +149,7 @@ Windows:
 ```bat
 .venv\Scripts\activate
 python -m pytest -q
-python -m compileall src app tests
+python -m compileall src app scripts tests
 ```
 
 macOS:
@@ -157,12 +157,14 @@ macOS:
 ```bash
 source .venv/bin/activate
 python -m pytest -q
-python -m compileall src app tests
+python -m compileall src app scripts tests
 ```
 
 ## Project Layout
 
 - `app\streamlit_app.py` - Streamlit interface
+- `tests` - offline unit tests (no API keys needed)
+- `scripts\test_agent_retrieval_integration.py` - live smoke test against Voyage AI, using a temporary index
 - `src\alchemyx` - application, retrieval, agent, ingestion, and generation code
 - `scripts\build_indexes.py` - corpus indexing command
 - `requirements.txt` - Python packages required by the application

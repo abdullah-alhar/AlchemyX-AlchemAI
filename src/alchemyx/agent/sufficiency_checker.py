@@ -3,7 +3,7 @@ from time import perf_counter
 
 from .prompts import build_sufficiency_prompt
 from .schemas import SufficiencyResult
-from .structured_json import extract_json_object, parse_with_one_repair
+from .structured_json import build_repair_prompt, extract_json_object, parse_with_one_repair
 
 
 class SufficiencyChecker:
@@ -24,9 +24,11 @@ class SufficiencyChecker:
         self.last_duration = perf_counter() - started
         log(f"Sufficiency check: {self.last_duration:.2f}s")
 
-        repair_prompt = (
+        repair_prompt = build_repair_prompt(
+            prompt,
+            response,
             "Return only valid JSON matching the sufficiency schema. No markdown "
-            "or commentary."
+            "or commentary.",
         )
         data, retries, errors = parse_with_one_repair(
             response, repair_prompt, lambda value: self._ask(value, "sufficiency_repair"), log, "sufficiency"
@@ -39,18 +41,6 @@ class SufficiencyChecker:
             return self.llm_client.ask(prompt, purpose=purpose)
         except TypeError:
             return self.llm_client.ask(prompt)
-
-    def _parse_response(self, response, documents):
-        from ..telemetry import log
-        data, retries, errors = parse_with_one_repair(
-            response,
-            "Return only valid JSON matching the sufficiency schema. No markdown or commentary.",
-            self.llm_client.ask,
-            log,
-            "sufficiency",
-        )
-        self.last_retry_count = retries
-        return self._parse_data(data, documents, errors)
 
     def _parse_data(self, data, documents, internal_errors=None):
         internal_errors = internal_errors or []
